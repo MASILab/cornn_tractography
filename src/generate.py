@@ -2,6 +2,8 @@
 # Leon Cai
 # MASI Lab
 
+# *** TODO MRTrix WORKING DIRS SHOULD BE IN OURS
+
 # Set Up
 
 import os
@@ -9,6 +11,7 @@ import subprocess
 import argparse as ap
 import numpy as np
 import nibabel as nib
+from datetime import datetime
 from tqdm import tqdm
 
 import torch
@@ -236,13 +239,11 @@ if __name__ == '__main__':
 
     parser = ap.ArgumentParser(description='CoRNN tractography: Streamline propagation with convolutional-recurrent neural networks')
     
-    parser.add_argument('in_file', metavar='/in/file.nii.gz', help='path to the input NIFTI file')
-    parser.add_argument('out_file', metavar='/out/file.trk', help='path to the output trk file')
+    parser.add_argument('t1_file', metavar='/in/file.nii.gz', help='path to the input NIFTI file')
+    parser.add_argument('trk_file', metavar='/out/file.trk', help='path to the output tractogram file')
 
-    parser.add_argument('--method', metavar='"teacher" or "student"', default='student', help='string indicating methodology (default = "student")')
-    parser.add_argument('--slant', metavar='/slant/out/dir', help='path to the SLANT output directory for the student network (required if method is "student")')
-    parser.add_argument('--wml', metavar='/wml/out/dir', help='path to the WML TractSeg output directory for the student network (required if method is "student")')
-    parser.add_argument('--t1', metavar='/t1/file.nii.gz', help='path to accompanying T1w MRI NIFTI file for the teacher network (required if method is "teacher")')
+    parser.add_argument('--slant', metavar='/slant/dir', default=None, help='path to the SLANT output directory (required)')
+    parser.add_argument('--wml', metavar='/wml/dir', default=None, help='path to the WML TractSeg output directory (required)')
 
     parser.add_argument('--device', metavar='cuda/cpu', default='cpu', help='string indicating device on which to perform tracking (default = "cpu")')
     parser.add_argument('--num_streamlines', metavar='N', default='1000000', help='number of streamlines (default = 1000000)')
@@ -252,7 +253,7 @@ if __name__ == '__main__':
     parser.add_argument('--buffer_steps', metavar='N', default='5', help='number of 1mm steps where the angle criteria is ignored at the beginning of tracking (default = 5)')
     parser.add_argument('--unidirectional', action='store_true', help='perform only unidirectional tracking (default = bidirectional)')
 
-    parser.add_argument('--work_dir', metavar='/work/dir', default='/home-local/cornn_tractography/tmp', help='path to temporary working directory (default = make new directory in /tmp)')
+    parser.add_argument('--work_dir', metavar='/work/dir', default='/tmp/cornn_{}'.format(datetime.now().strftime('%m%d%Y_%H%M%S')), help='path to temporary working directory (default = make new directory in /tmp)')
     parser.add_argument('--keep_work', action='store_true', help='do NOT remove working directory')
     parser.add_argument('--num_threads', metavar='N', default=1, help='Non-negative integer indicating number of threads to use when running multi-threaded steps of this pipeline (default = 1)')
 
@@ -262,26 +263,17 @@ if __name__ == '__main__':
     # Parse inputs
     # ------------
 
-    in_file = args.in_file
-    assert os.path.exists(args.in_file), 'Input file {} does not exist. Aborting.'.format(in_file)
+    t1_file = args.t1_file
+    assert os.path.exists(args.t1_file), 'Input T1 file {} does not exist. Aborting.'.format(t1_file)
 
-    out_file = args.out_file
-    out_dir = os.path.dirname(out_file)
-    assert os.path.exists(out_dir), 'Output directory {} does not exist. Aborting.'.format(out_dir)
+    trk_file = args.trk_file
+    trk_dir = os.path.dirname(trk_file)
+    assert os.path.exists(trk_dir), 'Output directory {} does not exist. Aborting.'.format(trk_dir)
     
-    method = args.method
-    assert args.method == 'teacher' or args.method == 'student', 'Parameter method must be either "teacher" or "student". {} provided. Aborting.'.format(method)
-    if method == 'student':
-        slant_dir = str(args.slant)
-        assert os.path.exists(slant_dir), 'SLANT directory {} does not exist. Aborting.'.format(slant_dir)
-        wml_dir = str(args.wml)
-        assert os.path.exists(wml_dir), 'WML TractSeg directory {} does not exist. Aborting.'.format(wml_dir)
-        t1_file = in_file
-    elif method == 'teacher':
-        slant_dir = ''
-        wml_dir = ''
-        t1_file = str(args.t1)
-        assert os.path.exists(t1_file), 'T1 file {} does not exist. Aborting.'.format(t1_file)
+    slant_dir = str(args.slant)
+    assert os.path.exists(slant_dir), 'SLANT directory {} does not exist. Aborting.'.format(slant_dir)
+    wml_dir = str(args.wml)
+    assert os.path.exists(wml_dir), 'WML TractSeg directory {} does not exist. Aborting.'.format(wml_dir)
         
     device_str = args.device
     
@@ -302,185 +294,165 @@ if __name__ == '__main__':
     num_select = int(args.num_streamlines)
     assert num_select > 0, 'Parameter num_streamlines must be positive. {} provided. Aborting.'.format(num_select)
 
-    work_dir = args.work_dir # *** TODO make a new directory as default
-    assert os.path.exists(work_dir), 'Working directory {} does not exist. Aborting.'.format(work_dir)
+    work_dir = args.work_dir
+    if not os.path.exists(work_dir):
+        os.mkdir(work_dir)
     keep_work = args.keep_work
 
     # ---------------------------
     # Move into working directory
     # ---------------------------
 
-    if method == 'teacher':
-        convert_cmd = 'mrconvert {} {} ; mrconvert {} {}'.format(in_file, os.path.join(work_dir, 'dwmri.nii.gz'), t1_file, os.path.join(work_dir, 'T1.nii.gz'))
-    elif method == 'student':
-        if not os.path.exists(os.path.join(work_dir, 'T1.nii.gz')):
-            convert_cmd = 'mrconvert {} {}'.format(in_file, os.path.join(work_dir, 'T1.nii.gz'))
-            run(convert_cmd)
+    if not os.path.exists(os.path.join(work_dir, 'T1.nii.gz')):
+        convert_cmd = 'mrconvert {} {}'.format(t1_file, os.path.join(work_dir, 'T1.nii.gz'))
+        run(convert_cmd)
 
     # ----------
     # Prepare T1
     # ----------
+
     t1_cmd = '{} ; bash {} {} {} {} {} {}'.format(SOURCE_VENV, os.path.join(SRC_DIR, 'prep_T1.sh'), work_dir, ATLAS_DIR, SRC_DIR, slant_dir, wml_dir)
     run(t1_cmd)
-
-    # ------------
-    # Prepare dMRI
-    # ------------
-
-    if method == 'teacher':
-        dwmri_cmd = 'bash /home-local/cornn_tractography/src/prep_dwmri.sh'
-        pass # *** TODO
 
     # -----------------
     # Prepare inference
     # -----------------
 
     # Load data
-    
-    act_img = nib.load(os.path.join(work_dir, 'T1_5tt_mni_2mm.nii.gz')).get_fdata()[:, :, :, :-1]
-    mask_img = nib.load(os.path.join(work_dir, 'T1_mask_mni_2mm.nii.gz')).get_fdata().astype(bool)
-    seed_img = nib.load(os.path.join(work_dir, 'T1_seed_mni_2mm.nii.gz')).get_fdata()
 
-    if method == 'teacher':
-        fod_nii     = nib.load(os.path.join(work_dir, 'dwmri_fod_mni_2mm.nii.gz'))
-        fod_img     = fod_nii.get_fdata()
-        ten         = torch.FloatTensor(np.expand_dims(np.transpose(fod_img, axes=(3, 0, 1, 2)), axis=0))
-        aff         = fod_nii.affine
-    elif method == 'student':
-        t1_nii      = nib.load(os.path.join(work_dir, 'T1_N4_mni_2mm.nii.gz'))
-        t1_img      = t1_nii.get_fdata()
-        t1_ten      = torch.FloatTensor(np.expand_dims(t1_img / np.median(t1_img[mask_img]), axis=(0, 1)))
-        act_ten     = torch.FloatTensor(np.expand_dims(np.transpose(act_img, axes=(3, 0, 1, 2)), axis=0))
-        tseg_img    = nib.load(os.path.join(work_dir, 'T1_tractseg_mni_2mm.nii.gz')).get_fdata()
-        tseg_ten    = torch.FloatTensor(np.expand_dims(np.transpose(tseg_img, axes=(3, 0, 1, 2)), axis=0))
-        slant_img   = nib.load(os.path.join(work_dir, 'T1_slant_mni_2mm.nii.gz')).get_fdata()
-        slant_ten   = torch.FloatTensor(np.expand_dims(np.transpose(slant_img, axes=(3, 0, 1, 2)), axis=0))
-        ten         = torch.cat((t1_ten, act_ten, tseg_ten, slant_ten), dim=1)
-        aff         = t1_nii.affine
+    mask_img    = nib.load(os.path.join(work_dir, 'T1_mask_mni_2mm.nii.gz')).get_fdata().astype(bool)
+    seed_img    = nib.load(os.path.join(work_dir, 'T1_seed_mni_2mm.nii.gz')).get_fdata()
+
+    t1_nii      = nib.load(os.path.join(work_dir, 'T1_N4_mni_2mm.nii.gz'))
+    t1_img      = t1_nii.get_fdata()
+    t1_ten      = torch.FloatTensor(np.expand_dims(t1_img / np.median(t1_img[mask_img]), axis=(0, 1)))
+
+    act_img     = nib.load(os.path.join(work_dir, 'T1_5tt_mni_2mm.nii.gz')).get_fdata()[:, :, :, :-1]
+    act_ten     = torch.FloatTensor(np.expand_dims(np.transpose(act_img, axes=(3, 0, 1, 2)), axis=0))
+
+    tseg_img    = nib.load(os.path.join(work_dir, 'T1_tractseg_mni_2mm.nii.gz')).get_fdata()
+    tseg_ten    = torch.FloatTensor(np.expand_dims(np.transpose(tseg_img, axes=(3, 0, 1, 2)), axis=0))
+    
+    slant_img   = nib.load(os.path.join(work_dir, 'T1_slant_mni_2mm.nii.gz')).get_fdata()
+    slant_ten   = torch.FloatTensor(np.expand_dims(np.transpose(slant_img, axes=(3, 0, 1, 2)), axis=0))
+    
+    ten         = torch.cat((t1_ten, act_ten, tseg_ten, slant_ten), dim=1)
+    aff         = t1_nii.affine
 
     # Load model
 
-    if method == 'teacher':
-        cnn_file = os.path.join(MODEL_DIR, 'fod_cnn_e1073s1.pt')
-        rnn_file = os.path.join(MODEL_DIR, 'fod_rnn_e1073s1.pt')
-        cnn      = DetCNNFake()
-        rnn      = DetRNN(45, fc_width=512, fc_depth=4, rnn_width=512, rnn_depth=2)
-    elif method == 'student':
-        cnn_file = os.path.join(MODEL_DIR, 't1_cnn_e1073s1.pt')
-        rnn_file = os.path.join(MODEL_DIR, 't1_rnn_e1073s1.pt')
-        cnn      = DetConvProj(123, 512, kernel_size=7)
-        rnn      = DetRNN(512, fc_width=512, fc_depth=4, rnn_width=512, rnn_depth=2)
-    cnn.load_state_dict(torch.load(cnn_file, map_location=torch.device('cpu')))
-    rnn.load_state_dict(torch.load(rnn_file, map_location=torch.device('cpu')))
-    device = torch.device(device_str)
+    device   = torch.device(device_str)
+    cnn      = DetConvProj(123, 512, kernel_size=7)
+    rnn      = DetRNN(512, fc_width=512, fc_depth=4, rnn_width=512, rnn_depth=2)
+    cnn.load_state_dict(torch.load(os.path.join(MODEL_DIR, 't1_cnn_e1073s1.pt'), map_location=torch.device('cpu')))
+    rnn.load_state_dict(torch.load(os.path.join(MODEL_DIR, 't1_rnn_e1073s1.pt'), map_location=torch.device('cpu')))
     
     # -----------------------
     # Inference (image-level)
     # -----------------------
 
-    ten = ten2features(ten, cnn, device)
-    img = np.transpose(np.squeeze(ten.cpu().numpy(), axis=0), axes=(1, 2, 3, 0))
-    nii = nib.Nifti1Image(img, aff)
-    nib.save(nii, os.path.join(work_dir, 'inference_mni_2mm.nii.gz'))
+    if not os.path.exists(os.path.join(work_dir, 'inference_mni_2mm.nii.gz')):
+        ten = ten2features(ten, cnn, device)
+        img = np.transpose(np.squeeze(ten.cpu().numpy(), axis=0), axes=(1, 2, 3, 0))
+        nii = nib.Nifti1Image(img, aff)
+        nib.save(nii, os.path.join(work_dir, 'inference_mni_2mm.nii.gz'))
+    else:
+        nii = nib.load(os.path.join(work_dir, 'inference_mni_2mm.nii.gz'))
+        img = nii.get_fdata()
+        ten = torch.FloatTensor(np.expand_dims(np.transpose(img, axes=(3, 0, 1, 2)), axis=0))
 
     # --------------------
     # Inference (tracking)
     # --------------------
 
-    # Loop through batches until number of desired streamlines are obtained
+    if not os.path.exists(os.path.join(work_dir, 'inference_mni_2mm.trk')):
+        
+        # Loop through batches until number of desired streamlines are obtained
 
-    streamlines_selected = []
-    streamlines_selected_num = 0
-    batch = 0
+        streamlines_selected = []
+        streamlines_selected_num = 0
+        batch = 0
 
-    while streamlines_selected_num < num_select:
+        while streamlines_selected_num < num_select:
 
-        # Forward tracking
+            # Forward tracking
 
-        # Generate forward seeds
+            # Generate forward seeds
 
-        seed_vox = img2seeds(seed_img)                                  # Floating point location in voxel space
-        seed_step = None                                                # Incoming angle to seed_vox (cartesian)
-        seed_trid = vox2trid(seed_vox)                                  # Distance to lower voxel in voxel space
-        seed_trii = vox2trii(seed_vox, seed_img)                        # Neighboring integer points in voxel space
-        seed_hidden = torch.zeros((2, num_seeds, 512))                  # Hidden state (initialize as zeros per PyTorch docs)
-        seed_max_steps = np.ones((num_seeds,)).astype(int) * max_steps  # Max number of propagating steps for each seed
+            seed_vox = img2seeds(seed_img)                                  # Floating point location in voxel space
+            seed_step = None                                                # Incoming angle to seed_vox (cartesian)
+            seed_trid = vox2trid(seed_vox)                                  # Distance to lower voxel in voxel space
+            seed_trii = vox2trii(seed_vox, seed_img)                        # Neighboring integer points in voxel space
+            seed_hidden = torch.zeros((2, num_seeds, 512))                  # Hidden state (initialize as zeros per PyTorch docs)
+            seed_max_steps = np.ones((num_seeds,)).astype(int) * max_steps  # Max number of propagating steps for each seed
 
-        # Track
-
-        streamlines_vox, streamlines_terminate, streamlines_reject = seeds2streamlines(seed_vox, seed_step, seed_trid, seed_trii, seed_hidden, seed_max_steps, angle_steps, rnn, ten, device)
-
-        # Reverse tracking
-
-        if rev:
-
-            # Generate reverse seeds
-
-            rev_vox, rev_step, rev_trid, rev_trii, rev_hidden, rev_max_steps, rev_valid = streamlines2reverse(streamlines_vox[angle_steps:, :, :], streamlines_terminate, streamlines_reject, rnn, ten, device)
-            
             # Track
 
-            rev_streamlines_vox, rev_streamlines_terminate, rev_streamlines_reject = seeds2streamlines(rev_vox, rev_step, rev_trid, rev_trii, rev_hidden, rev_max_steps, 0, rnn, ten, device)
+            streamlines_vox, streamlines_terminate, streamlines_reject = seeds2streamlines(seed_vox, seed_step, seed_trid, seed_trii, seed_hidden, seed_max_steps, angle_steps, rnn, ten, device)
+
+            # Reverse tracking
+
+            if rev:
+
+                # Generate reverse seeds
+
+                rev_vox, rev_step, rev_trid, rev_trii, rev_hidden, rev_max_steps, rev_valid = streamlines2reverse(streamlines_vox[angle_steps:, :, :], streamlines_terminate, streamlines_reject, rnn, ten, device)
+                
+                # Track
+
+                rev_streamlines_vox, rev_streamlines_terminate, rev_streamlines_reject = seeds2streamlines(rev_vox, rev_step, rev_trid, rev_trii, rev_hidden, rev_max_steps, 0, rnn, ten, device)
+                
+                # Merge forward and reverse
+
+                joint_streamlines_vox = np.empty((rev_streamlines_vox.shape[0], rev_streamlines_vox.shape[1], num_seeds))
+                joint_streamlines_vox[:, :, rev_valid] = np.flip(rev_streamlines_vox, axis=0)
+                joint_streamlines_vox[:, :, np.logical_not(rev_valid)] = np.nan
+                joint_streamlines_vox = np.concatenate((joint_streamlines_vox, streamlines_vox[angle_steps:, :, :]), axis=0)
+
+                streamlines_vox = joint_streamlines_vox
+                streamlines_reject[rev_valid] = np.logical_or(streamlines_reject[rev_valid], rev_streamlines_reject)
             
-            # Merge forward and reverse
+            # Reformat streamlines and remove those that are too short
 
-            joint_streamlines_vox = np.empty((rev_streamlines_vox.shape[0], rev_streamlines_vox.shape[1], num_seeds))
-            joint_streamlines_vox[:, :, rev_valid] = np.flip(rev_streamlines_vox, axis=0)
-            joint_streamlines_vox[:, :, np.logical_not(rev_valid)] = np.nan
-            joint_streamlines_vox = np.concatenate((joint_streamlines_vox, streamlines_vox[angle_steps:, :, :]), axis=0)
+            streamlines_vox = np.split(streamlines_vox, streamlines_vox.shape[2], axis=2)
+            streamlines_empty = np.zeros((len(streamlines_vox),)).astype(bool)
+            for i in range(len(streamlines_vox)):
+                streamlines_vox[i] = np.squeeze(streamlines_vox[i])
+                keep_idxs = np.logical_not(np.all(np.isnan(streamlines_vox[i]), axis=1))
+                num_steps = np.sum(keep_idxs)
+                if num_steps == 0:
+                    streamlines_empty[i] = True
+                if num_steps < min_steps + 1:
+                    streamlines_reject[i] = True
+                streamlines_vox[i] = streamlines_vox[i][keep_idxs, :]
+            streamlines_vox = nib.streamlines.array_sequence.ArraySequence(streamlines_vox)
+            streamlines_vox = streamlines_vox[np.logical_not(streamlines_reject[np.logical_not(streamlines_empty)])]
 
-            streamlines_vox = joint_streamlines_vox
-            streamlines_reject[rev_valid] = np.logical_or(streamlines_reject[rev_valid], rev_streamlines_reject)
-        
-        # Reformat streamlines and remove those that are too short
+            # Update selected
 
-        streamlines_vox = np.split(streamlines_vox, streamlines_vox.shape[2], axis=2)
-        streamlines_empty = np.zeros((len(streamlines_vox),)).astype(bool)
-        for i in range(len(streamlines_vox)):
-            streamlines_vox[i] = np.squeeze(streamlines_vox[i])
-            keep_idxs = np.logical_not(np.all(np.isnan(streamlines_vox[i]), axis=1))
-            num_steps = np.sum(keep_idxs)
-            if num_steps == 0:
-                streamlines_empty[i] = True
-            if num_steps < min_steps + 1:
-                streamlines_reject[i] = True
-            streamlines_vox[i] = streamlines_vox[i][keep_idxs, :]
-        streamlines_vox = nib.streamlines.array_sequence.ArraySequence(streamlines_vox)
-        streamlines_vox = streamlines_vox[np.logical_not(streamlines_reject[np.logical_not(streamlines_empty)])]
+            streamlines_selected.append(streamlines_vox)
+            streamlines_selected_num += len(streamlines_vox)
+            print('Batch {}: {} seeds, {} ({:0.2f}%) selected, {} ({:0.2f}%) total'.format(batch, num_seeds, len(streamlines_vox), 100*len(streamlines_vox)/num_seeds, streamlines_selected_num, 100*streamlines_selected_num/num_select))
 
-        # Update selected
+            # Prepare for next batch
 
-        streamlines_selected.append(streamlines_vox)
-        streamlines_selected_num += len(streamlines_vox)
-        print('Batch {}: {} seeds, {} ({:0.2f}%) selected, {} ({:0.2f}%) total'.format(batch, num_seeds, len(streamlines_vox), 100*len(streamlines_vox)/num_seeds, streamlines_selected_num, 100*streamlines_selected_num/num_select))
+            batch += 1
 
-        # Prepare for next batch
+        # Save tractogram
 
-        batch += 1
+        streamlines_selected = nib.streamlines.array_sequence.concatenate(streamlines_selected, axis=0)
+        streamlines_selected = streamlines_selected[:num_select]
+        sft = StatefulTractogram(streamlines_selected, reference=t1_nii, space=Space.VOX)
+        save_tractogram(sft, os.path.join(work_dir, 'inference_mni_2mm.trk'), bbox_valid_check=False)
 
-    # Save tractogram
-
-    streamlines_selected = streamlines_selected[:num_select]
-    streamlines_selected = nib.streamlines.array_sequence.concatenate(streamlines_selected, axis=0)
-    sft = StatefulTractogram(streamlines_selected, reference=t1_nii, space=Space.VOX)
-    save_tractogram(sft, os.path.join(work_dir, 'inference_mni_2mm.trk'), bbox_valid_check=False)
-
-    # --------------------------------------------------
-    # Post-process TRK and move out of working directory
-    # --------------------------------------------------
+    # -------------------------------------------------
+    # Post-processing and move out of working directory
+    # -------------------------------------------------
     
-    trk_file = out_file if method == 'student' else os.path.join(work_dir, 'inference_T1.trk')
-    trk_cmd = '{} scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid --reference {}'.format(SOURCE_SCILPY,
-                                                                                                            os.path.join(work_dir, 'inference_mni_2mm.trk'), 
-                                                                                                            os.path.join(work_dir, 'T1_N4.nii.gz'), 
-                                                                                                            os.path.join(work_dir, 'T12mni_0GenericAffine.mat'), 
-                                                                                                            trk_file,
-                                                                                                            os.path.join(work_dir, 'T1_N4.nii.gz')) # no --inverse needed per ANTs convention
-    if method == 'teacher':
-        trk_cmd = '{} scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid --reference {}'.format(trk_cmd,
-                                                                                                                trk_file, 
-                                                                                                                in_file, 
-                                                                                                                os.path.join(work_dir, 'dwmri2T1_0GenericAffine.mat'), 
-                                                                                                                out_file,
-                                                                                                                in_file) # no --inverse needed per ANTs convention
-    run(trk_cmd)
+    if not os.path.exists(trk_file):
+        trk_cmd = '{} ; scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid'.format(SOURCE_SCILPY,
+                                                                                                   os.path.join(work_dir, 'inference_mni_2mm.trk'), 
+                                                                                                   os.path.join(work_dir, 'T1_N4.nii.gz'), 
+                                                                                                   os.path.join(work_dir, 'T12mni_0GenericAffine.mat'), 
+                                                                                                   trk_file) # no --inverse needed per ANTs convention
+        run(trk_cmd)
