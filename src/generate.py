@@ -18,6 +18,14 @@ from dipy.io.stateful_tractogram import Space, StatefulTractogram
 from utils import vox2trid, vox2trii, triinterp
 from modules import DetRNN, DetCNNFake, DetConvProj
 
+# Shared Variables
+
+ATLAS_DIR = '/home-local/cornn_tractography/atlas'
+MODEL_DIR = '/home-local/cornn_tractography/model'
+SRC_DIR   = '/home-local/cornn_tractography/src'
+SOURCE_SCILPY = 'source ~/Apps/scilpy/venv/bin/activate'
+SOURCE_VENV   = 'source /home-local/cornn_tractography/venv/bin/activate'
+
 # Helper Functions
 
 def tri2act(curr_trid, curr_trii, curr_step, prev_trid, prev_trii, prev_step, step, max_steps, act_img, mask_img, tissue_thres=0.5, angle=60, ignore_angle=False):
@@ -231,7 +239,7 @@ if __name__ == '__main__':
     parser.add_argument('in_file', metavar='/in/file.nii.gz', help='path to the input NIFTI file')
     parser.add_argument('out_file', metavar='/out/file.trk', help='path to the output trk file')
 
-    parser.add_argument('--method', metavar='"teacher" or "student"', help='string indicating methodology')
+    parser.add_argument('--method', metavar='"teacher" or "student"', default='student', help='string indicating methodology (default = "student")')
     parser.add_argument('--slant', metavar='/slant/out/dir', help='path to the SLANT output directory for the student network (required if method is "student")')
     parser.add_argument('--wml', metavar='/wml/out/dir', help='path to the WML TractSeg output directory for the student network (required if method is "student")')
     parser.add_argument('--t1', metavar='/t1/file.nii.gz', help='path to accompanying T1w MRI NIFTI file for the teacher network (required if method is "teacher")')
@@ -254,49 +262,49 @@ if __name__ == '__main__':
     # Parse inputs
     # ------------
 
-    in_file = parser.in_file
-    assert os.path.exists(parser.in_file), 'Input file {} does not exist. Aborting.'.format(in_file)
+    in_file = args.in_file
+    assert os.path.exists(args.in_file), 'Input file {} does not exist. Aborting.'.format(in_file)
 
-    out_file = parser.out_file
-    out_dir = os.dirname(out_file)
-    assert os.path.exists(parser.out_dir), 'Output directory {} does not exist. Aborting.'.format(out_dir)
+    out_file = args.out_file
+    out_dir = os.path.dirname(out_file)
+    assert os.path.exists(out_dir), 'Output directory {} does not exist. Aborting.'.format(out_dir)
     
-    method = parser.method
-    assert parser.method == 'teacher' or parser.method == 'student', 'Parameter method must be either "teacher" or "student". {} provided. Aborting.'.format(method)
+    method = args.method
+    assert args.method == 'teacher' or args.method == 'student', 'Parameter method must be either "teacher" or "student". {} provided. Aborting.'.format(method)
     if method == 'student':
-        slant_dir = parser.slant
+        slant_dir = str(args.slant)
         assert os.path.exists(slant_dir), 'SLANT directory {} does not exist. Aborting.'.format(slant_dir)
-        wml_dir = parser.wml
+        wml_dir = str(args.wml)
         assert os.path.exists(wml_dir), 'WML TractSeg directory {} does not exist. Aborting.'.format(wml_dir)
         t1_file = in_file
     elif method == 'teacher':
         slant_dir = ''
         wml_dir = ''
-        t1_file = parser.t1
+        t1_file = str(args.t1)
         assert os.path.exists(t1_file), 'T1 file {} does not exist. Aborting.'.format(t1_file)
         
-    device_str = parser.device
+    device_str = args.device
     
-    num_seeds = int(parser.num_seeds)
+    num_seeds = int(args.num_seeds)
     assert num_seeds > 0, 'Parameter num_seeds must be positive. {} provided. Aborting.'.format(num_seeds)
 
-    max_steps = int(parser.max_steps)
+    max_steps = int(args.max_steps)
     assert max_steps > 0, 'Parameter max_steps must be positive. {} provided. Aborting.'.format(max_steps)
-    min_steps = int(parser.min_steps)
+    min_steps = int(args.min_steps)
     assert min_steps > 0, 'Parameter min_steps must be positive. {} provided. Aborting.'.format(min_steps)
     assert min_steps < max_steps, 'Parameter min_steps must be less than max_steps. {} and {} were provided.'.format(min_steps, max_steps)
 
-    angle_steps = int(parser.buffer_steps)
+    angle_steps = int(args.buffer_steps)
     assert angle_steps > 0, 'Parameter angle_steps must be positive. {} provided. Aborting.'.format(angle_steps)
 
-    rev = not parser.unidirectional
+    rev = not args.unidirectional
 
-    num_select = int(parser.num_streamlines)
+    num_select = int(args.num_streamlines)
     assert num_select > 0, 'Parameter num_streamlines must be positive. {} provided. Aborting.'.format(num_select)
 
-    work_dir = parser.work_dir
+    work_dir = args.work_dir # *** TODO make a new directory as default
     assert os.path.exists(work_dir), 'Working directory {} does not exist. Aborting.'.format(work_dir)
-    keep_work = parser.keep_work
+    keep_work = args.keep_work
 
     # ---------------------------
     # Move into working directory
@@ -305,16 +313,14 @@ if __name__ == '__main__':
     if method == 'teacher':
         convert_cmd = 'mrconvert {} {} ; mrconvert {} {}'.format(in_file, os.path.join(work_dir, 'dwmri.nii.gz'), t1_file, os.path.join(work_dir, 'T1.nii.gz'))
     elif method == 'student':
-        convert_cmd = 'mrconvert {} {}'.format(in_file, os.path.join(work_dir, 'T1.nii.gz'))
-    
-    run(convert_cmd)
+        if not os.path.exists(os.path.join(work_dir, 'T1.nii.gz')):
+            convert_cmd = 'mrconvert {} {}'.format(in_file, os.path.join(work_dir, 'T1.nii.gz'))
+            run(convert_cmd)
 
     # ----------
     # Prepare T1
     # ----------
-        
-    atlas_dir = '/home-local/cornn_tractography/atlas'
-    t1_cmd = 'bash prep_T1.sh {} {} {}'.format(work_dir, atlas_dir, slant_dir, wml_dir)
+    t1_cmd = '{} ; bash {} {} {} {} {} {}'.format(SOURCE_VENV, os.path.join(SRC_DIR, 'prep_T1.sh'), work_dir, ATLAS_DIR, SRC_DIR, slant_dir, wml_dir)
     run(t1_cmd)
 
     # ------------
@@ -322,7 +328,7 @@ if __name__ == '__main__':
     # ------------
 
     if method == 'teacher':
-        dwmri_cmd = 'bash prep_dwmri.sh'
+        dwmri_cmd = 'bash /home-local/cornn_tractography/src/prep_dwmri.sh'
         pass # *** TODO
 
     # -----------------
@@ -354,15 +360,14 @@ if __name__ == '__main__':
 
     # Load model
 
-    model_dir = '/home-local/cornn_tractography/model'
     if method == 'teacher':
-        cnn_file = os.path.join(model_dir, 'fod_cnn_e1073s1.pt')
-        rnn_file = os.path.join(model_dir, 'fod_rnn_e1073s1.pt')
+        cnn_file = os.path.join(MODEL_DIR, 'fod_cnn_e1073s1.pt')
+        rnn_file = os.path.join(MODEL_DIR, 'fod_rnn_e1073s1.pt')
         cnn      = DetCNNFake()
         rnn      = DetRNN(45, fc_width=512, fc_depth=4, rnn_width=512, rnn_depth=2)
     elif method == 'student':
-        cnn_file = os.path.join(model_dir, 't1_cnn_e1073s1.pt')
-        rnn_file = os.path.join(model_dir, 't1_rnn_e1073s1.pt')
+        cnn_file = os.path.join(MODEL_DIR, 't1_cnn_e1073s1.pt')
+        rnn_file = os.path.join(MODEL_DIR, 't1_rnn_e1073s1.pt')
         cnn      = DetConvProj(123, 512, kernel_size=7)
         rnn      = DetRNN(512, fc_width=512, fc_depth=4, rnn_width=512, rnn_depth=2)
     cnn.load_state_dict(torch.load(cnn_file, map_location=torch.device('cpu')))
@@ -465,11 +470,12 @@ if __name__ == '__main__':
     # --------------------------------------------------
     
     trk_file = out_file if method == 'student' else os.path.join(work_dir, 'inference_T1.trk')
-    trk_cmd = 'scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid --reference {}'.format(os.path.join(work_dir, 'inference_mni_2mm.trk'), 
-                                                                                                         os.path.join(work_dir, 'T1_N4.nii.gz'), 
-                                                                                                         os.path.join(work_dir, 'T12mni_0GenericAffine.mat'), 
-                                                                                                         trk_file,
-                                                                                                         os.path.join(work_dir, 'T1_N4.nii.gz')) # no --inverse needed per ANTs convention
+    trk_cmd = '{} scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid --reference {}'.format(SOURCE_SCILPY,
+                                                                                                            os.path.join(work_dir, 'inference_mni_2mm.trk'), 
+                                                                                                            os.path.join(work_dir, 'T1_N4.nii.gz'), 
+                                                                                                            os.path.join(work_dir, 'T12mni_0GenericAffine.mat'), 
+                                                                                                            trk_file,
+                                                                                                            os.path.join(work_dir, 'T1_N4.nii.gz')) # no --inverse needed per ANTs convention
     if method == 'teacher':
         trk_cmd = '{} scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid --reference {}'.format(trk_cmd,
                                                                                                                 trk_file, 
