@@ -236,7 +236,7 @@ if __name__ == '__main__':
     parser.add_argument('--wml', metavar='/wml/out/dir', help='path to the WML TractSeg output directory for the student network (required if method is "student")')
     parser.add_argument('--t1', metavar='/t1/file.nii.gz', help='path to accompanying T1w MRI NIFTI file for the teacher network (required if method is "teacher")')
 
-    parser.add_argument('--device', metavar='cuda:0/cpu', default='cpu', help='string indicating device on which to perform tracking (default = "cpu")')
+    parser.add_argument('--device', metavar='cuda/cpu', default='cpu', help='string indicating device on which to perform tracking (default = "cpu")')
     parser.add_argument('--num_streamlines', metavar='N', default='1000000', help='number of streamlines (default = 1000000)')
     parser.add_argument('--num_seeds', metavar='N', default='100000', help='number of streamline seeds per batch (default = 100000)')
     parser.add_argument('--min_steps', metavar='N', default='50', help='minimum number of 1mm steps for streamlines (default = 50)')
@@ -344,7 +344,7 @@ if __name__ == '__main__':
         t1_nii      = nib.load(os.path.join(work_dir, 'T1_N4_mni_2mm.nii.gz'))
         t1_img      = t1_nii.get_fdata()
         t1_ten      = torch.FloatTensor(np.expand_dims(t1_img / np.median(t1_img[mask_img]), axis=(0, 1)))
-        act_ten = torch.FloatTensor(np.expand_dims(np.transpose(act_img, axes=(3, 0, 1, 2)), axis=0))
+        act_ten     = torch.FloatTensor(np.expand_dims(np.transpose(act_img, axes=(3, 0, 1, 2)), axis=0))
         tseg_img    = nib.load(os.path.join(work_dir, 'T1_tractseg_mni_2mm.nii.gz')).get_fdata()
         tseg_ten    = torch.FloatTensor(np.expand_dims(np.transpose(tseg_img, axes=(3, 0, 1, 2)), axis=0))
         slant_img   = nib.load(os.path.join(work_dir, 'T1_slant_mni_2mm.nii.gz')).get_fdata()
@@ -376,7 +376,7 @@ if __name__ == '__main__':
     ten = ten2features(ten, cnn, device)
     img = np.transpose(np.squeeze(ten.cpu().numpy(), axis=0), axes=(1, 2, 3, 0))
     nii = nib.Nifti1Image(img, aff)
-    nib.save(nii, os.path.join(work_dir, 'inference.nii.gz'))
+    nib.save(nii, os.path.join(work_dir, 'inference_mni_2mm.nii.gz'))
 
     # --------------------
     # Inference (tracking)
@@ -455,18 +455,26 @@ if __name__ == '__main__':
 
     # Save tractogram
 
-    streamlines_selected = nib.streamlines.array_sequence.concatenate(streamlines_selected, axis=0) # *** GET RID OF OVERFLOW TODO
+    streamlines_selected = streamlines_selected[:num_select]
+    streamlines_selected = nib.streamlines.array_sequence.concatenate(streamlines_selected, axis=0)
     sft = StatefulTractogram(streamlines_selected, reference=t1_nii, space=Space.VOX)
-    save_tractogram(sft, os.path.join(work_dir, 'inference.trk'), bbox_valid_check=False)
+    save_tractogram(sft, os.path.join(work_dir, 'inference_mni_2mm.trk'), bbox_valid_check=False)
 
-    # ----------------
-    # Post-process TRK
-    # ----------------
+    # --------------------------------------------------
+    # Post-process TRK and move out of working directory
+    # --------------------------------------------------
     
-    post_cmd = 'bash post_trk.sh {} {} {}'.format(work_dir, atlas_dir, slant_dir, wml_dir)
-    run(post_cmd)
-
-    # -----------------------------
-    # Move out of working directory
-    # -----------------------------
-
+    trk_file = out_file if method == 'student' else os.path.join(work_dir, 'inference_T1.trk')
+    trk_cmd = 'scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid --reference {}'.format(os.path.join(work_dir, 'inference_mni_2mm.trk'), 
+                                                                                                         os.path.join(work_dir, 'T1_N4.nii.gz'), 
+                                                                                                         os.path.join(work_dir, 'T12mni_0GenericAffine.mat'), 
+                                                                                                         trk_file,
+                                                                                                         os.path.join(work_dir, 'T1_N4.nii.gz')) # no --inverse needed per ANTs convention
+    if method == 'teacher':
+        trk_cmd = '{} scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid --reference {}'.format(trk_cmd,
+                                                                                                                trk_file, 
+                                                                                                                in_file, 
+                                                                                                                os.path.join(work_dir, 'dwmri2T1_0GenericAffine.mat'), 
+                                                                                                                out_file,
+                                                                                                                in_file) # no --inverse needed per ANTs convention
+    run(trk_cmd)

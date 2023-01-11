@@ -1,16 +1,17 @@
 #!/bin/bash
 
-# Inputs:
-# - T1_gen_mni_2mm
-# - T1_N4.nii.gz (prep_t1.sh)
-# - T12mni_0GenericAffine.mat (prep_t1.sh)
+# Input directory:
+# - inference_mni_2mm.trk
+# - T1_N4.nii.gz
+# - T12mni_0GenericAffine.mat
 
 in_dir=$1
 
 # Move from MNI to T1 space
+# - inference.trk
 
 echo "post_trk.sh: Moving tractogram to T1 space..."
-scil_apply_transform_to_tractogram.py $in_dir/T1_gen_mni_2mm.trk $in_dir/T1_N4.nii.gz $in_dir/T12mni_0GenericAffine.mat $in_dir/T1_gen.trk --remove_invalid # no --inverse needed per ANTs convention
+scil_apply_transform_to_tractogram.py $in_dir/inference_mni_2mm.trk $in_dir/T1_N4.nii.gz $in_dir/T12mni_0GenericAffine.mat $in_dir/inference.trk --remove_invalid # no --inverse needed per ANTs convention
 
 # Wrap up
 
