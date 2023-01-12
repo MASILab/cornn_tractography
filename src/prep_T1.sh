@@ -13,54 +13,40 @@ wml_dir=$5
 # - T1_mask.nii.gz
 
 echo "prep_T1.sh: Computing T1 mask..."
-if [ ! -f $in_dir/T1_mask.nii.gz ]
-then
-    fslmaths $slant_dir/FinalResult/T1_seg.nii.gz -div $slant_dir/FinalResult/T1_seg.nii.gz -fillh $in_dir/T1_mask.nii.gz -odt int
-fi
+cmd="fslmaths $slant_dir/FinalResult/T1_seg.nii.gz -div $slant_dir/FinalResult/T1_seg.nii.gz -fillh $in_dir/T1_mask.nii.gz -odt int"
+[ ! -f $in_dir/T1_mask.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: Output exists, skipping!"
 
 # Bias correction
 # - T1_N4.nii.gz
 
 echo "prep_T1.sh: Bias correcting T1..."
-if [ ! -f $in_dir/T1_N4.nii.gz ]
-then
-N4BiasFieldCorrection -d 3 -i $in_dir/T1.nii.gz -x $in_dir/T1_mask.nii.gz -o $in_dir/T1_N4.nii.gz
-fi
+cmd="N4BiasFieldCorrection -d 3 -i $in_dir/T1.nii.gz -x $in_dir/T1_mask.nii.gz -o $in_dir/T1_N4.nii.gz"
+[ ! -f $in_dir/T1_N4.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: Output exists, skipping!"
 
 # Generate tissue classes
 # - T1_5tt.nii.gz
 
 echo "prep_T1.sh: Computing 5tt classes..."
-if [ ! -f $in_dir/T1_5tt.nii.gz ]
-then
-5ttgen fsl $in_dir/T1_N4.nii.gz $in_dir/T1_5tt.nii.gz -mask $in_dir/T1_mask.nii.gz -nocrop
-fi
+cmd="5ttgen fsl $in_dir/T1_N4.nii.gz $in_dir/T1_5tt.nii.gz -mask $in_dir/T1_mask.nii.gz -nocrop -scratch $in_dir"
+[ ! -f $in_dir/T1_5tt.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: Output exists, skipping!"
 
 # Generate seed map:
 # - T1_seed.nii.gz
 
 echo "prep_T1.sh: Computing seed mask..."
-if [ ! -f $in_dir/T1_seed.nii.gz ]
-then
-fslmaths $in_dir/T1_5tt.nii.gz -roi 0 -1 0 -1 0 -1 2 1 -bin -Tmax $in_dir/T1_seed.nii.gz -odt int
-fi
+cmd="fslmaths $in_dir/T1_5tt.nii.gz -roi 0 -1 0 -1 0 -1 2 1 -bin -Tmax $in_dir/T1_seed.nii.gz -odt int"
+[ ! -f $in_dir/T1_seed.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: Output exists, skipping!"
 
 # Register to MNI template:
 # - T12mni_0GenericAffine.mat
 
 echo "prep_T1.sh: Registering to MNI space at 1mm isotropic..."
-if [ ! -f $in_dir/T12mni_0GenericAffine.mat ]
-then
-antsRegistrationSyN.sh -d 3 -m $in_dir/T1_N4.nii.gz -f $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_1mm.nii.gz -t r -o $in_dir/T12mni_
-fi
-if [ ! -f $in_dir/T1_N4_mni_1mm.nii.gz ]
-then
-mv $in_dir/T12mni_Warped.nii.gz $in_dir/T1_N4_mni_1mm.nii.gz
-fi
-if [ -f $in_dir/T12mni_InverseWarped.nii.gz ]
-then
-rm $in_dir/T12mni_InverseWarped.nii.gz
-fi
+cmd="antsRegistrationSyN.sh -d 3 -m $in_dir/T1_N4.nii.gz -f $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_1mm.nii.gz -t r -o $in_dir/T12mni_"
+[ ! -f $in_dir/T12mni_0GenericAffine.mat ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: Transform exists, skipping!"
+cmd="mv $in_dir/T12mni_Warped.nii.gz $in_dir/T1_N4_mni_1mm.nii.gz"
+[ ! -f $in_dir/T1_N4_mni_1mm.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: Outputs renamed, skipping!"
+cmd="rm $in_dir/T12mni_InverseWarped.nii.gz"
+[ -f $in_dir/T12mni_InverseWarped.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: Outputs cleaned, skipping!"
 
 # Move data to MNI
 # - T1_N4_mni_2mm.nii.gz
@@ -69,50 +55,34 @@ fi
 # - T1_5tt_mni_2mm.nii.gz
 
 echo "prep_T1.sh: Moving images to MNI space at 2mm isotropic..."
-if [ ! -f $in_dir/T1_N4_mni_2mm.nii.gz ]
-then
-antsApplyTransforms -d 3 -e 0 -r $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_2mm.nii.gz -i $in_dir/T1_N4.nii.gz   -t $in_dir/T12mni_0GenericAffine.mat -o $in_dir/T1_N4_mni_2mm.nii.gz   -n Linear
-fi
-if [ ! -f $in_dir/T1_mask_mni_2mm.nii.gz ]
-then
-antsApplyTransforms -d 3 -e 0 -r $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_2mm.nii.gz -i $in_dir/T1_mask.nii.gz -t $in_dir/T12mni_0GenericAffine.mat -o $in_dir/T1_mask_mni_2mm.nii.gz -n NearestNeighbor
-fi
-if [ ! -f $in_dir/T1_seed_mni_2mm.nii.gz ]
-then
-antsApplyTransforms -d 3 -e 0 -r $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_2mm.nii.gz -i $in_dir/T1_seed.nii.gz -t $in_dir/T12mni_0GenericAffine.mat -o $in_dir/T1_seed_mni_2mm.nii.gz -n NearestNeighbor
-fi
-if [ ! -f $in_dir/T1_5tt_mni_2mm.nii.gz ]
-then
-antsApplyTransforms -d 3 -e 3 -r $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_2mm.nii.gz -i $in_dir/T1_5tt.nii.gz  -t $in_dir/T12mni_0GenericAffine.mat -o $in_dir/T1_5tt_mni_2mm.nii.gz  -n Linear
-fi
+cmd="antsApplyTransforms -d 3 -e 0 -r $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_2mm.nii.gz -i $in_dir/T1_N4.nii.gz   -t $in_dir/T12mni_0GenericAffine.mat -o $in_dir/T1_N4_mni_2mm.nii.gz   -n Linear"
+[ ! -f $in_dir/T1_N4_mni_2mm.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: T1_N4 transformed, skipping!"
+cmd="antsApplyTransforms -d 3 -e 0 -r $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_2mm.nii.gz -i $in_dir/T1_mask.nii.gz -t $in_dir/T12mni_0GenericAffine.mat -o $in_dir/T1_mask_mni_2mm.nii.gz -n NearestNeighbor"
+[ ! -f $in_dir/T1_mask_mni_2mm.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: Mask transformed, skipping!"
+cmd="antsApplyTransforms -d 3 -e 0 -r $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_2mm.nii.gz -i $in_dir/T1_seed.nii.gz -t $in_dir/T12mni_0GenericAffine.mat -o $in_dir/T1_seed_mni_2mm.nii.gz -n NearestNeighbor"
+[ ! -f $in_dir/T1_seed_mni_2mm.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: Seeds transformed, skipping!"
+cmd="antsApplyTransforms -d 3 -e 3 -r $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_2mm.nii.gz -i $in_dir/T1_5tt.nii.gz  -t $in_dir/T12mni_0GenericAffine.mat -o $in_dir/T1_5tt_mni_2mm.nii.gz  -n Linear"
+[ ! -f $in_dir/T1_5tt_mni_2mm.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: 5tt transformed, skipping!"
 
 # Prep SLANT:
 # - T1_slant.nii.gz
 # - T1_slant_mni_2mm.nii.gz
 
 echo "prep_T1.sh: Preparing SLANT..."
-if [ ! -f $in_dir/T1_slant.nii.gz ]
-then
-python $src_dir/group_slant.py $slant_dir/FinalResult/T1_seg.nii.gz $in_dir/T1_slant.nii.gz # T1_slant is one-hot encoded
-fi
-if [ ! -f $in_dir/T1_slant_mni_2mm.nii.gz ]
-then
-antsApplyTransforms -d 3 -e 3 -r $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_2mm.nii.gz -i $in_dir/T1_slant.nii.gz  -t $in_dir/T12mni_0GenericAffine.mat -o $in_dir/T1_slant_mni_2mm.nii.gz -n NearestNeighbor
-fi
+cmd="python $src_dir/group_slant.py $slant_dir/FinalResult/T1_seg.nii.gz $in_dir/T1_slant.nii.gz"
+[ ! -f $in_dir/T1_slant.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: SLANT grouped, skipping!"
+cmd="antsApplyTransforms -d 3 -e 3 -r $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_2mm.nii.gz -i $in_dir/T1_slant.nii.gz  -t $in_dir/T12mni_0GenericAffine.mat -o $in_dir/T1_slant_mni_2mm.nii.gz -n NearestNeighbor"
+[ ! -f $in_dir/T1_slant_mni_2mm.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: SLANT transformed, skipping!"
 
 # Prep WML:
 # - T1_tractseg.nii.gz
 # - T1_tractseg_mni_2mm.nii.gz
 
 echo "prep_T1.sh: Preparing WML..."
-if [ ! -f $in_dir/T1_tractseg.nii.gz ]
-then
-fslmerge -t $in_dir/T1_tractseg.nii.gz $wml_dir/orig/*.nii.gz
-fi
-if [ ! -f $in_dir/T1_tractseg_mni_2mm.nii.gz ]
-then
-antsApplyTransforms -d 3 -e 3 -r $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_2mm.nii.gz -i $in_dir/T1_tractseg.nii.gz  -t $in_dir/T12mni_0GenericAffine.mat -o $in_dir/T1_tractseg_mni_2mm.nii.gz -n Linear
-fi
+cmd="fslmerge -t $in_dir/T1_tractseg.nii.gz $wml_dir/orig/*.nii.gz"
+[ ! -f $in_dir/T1_tractseg.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: WML merged, skipping!"
+cmd="antsApplyTransforms -d 3 -e 3 -r $atlas_dir/mni_icbm152_t1_tal_nlin_asym_09c_2mm.nii.gz -i $in_dir/T1_tractseg.nii.gz  -t $in_dir/T12mni_0GenericAffine.mat -o $in_dir/T1_tractseg_mni_2mm.nii.gz -n Linear"
+[ ! -f $in_dir/T1_tractseg_mni_2mm.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: WML transformed, skipping!"
 
 # Wrap up
 

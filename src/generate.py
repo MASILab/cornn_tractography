@@ -2,7 +2,7 @@
 # Leon Cai
 # MASI Lab
 
-# *** TODO MRTrix WORKING DIRS SHOULD BE IN OURS
+# *** TODO make pretty, verbose, print statements, etc (prep T1 too!)
 
 # Set Up
 
@@ -19,7 +19,7 @@ from dipy.io.streamline import save_tractogram
 from dipy.io.stateful_tractogram import Space, StatefulTractogram
 
 from utils import vox2trid, vox2trii, triinterp
-from modules import DetRNN, DetCNNFake, DetConvProj
+from modules import DetRNN, DetConvProj
 
 # Shared Variables
 
@@ -229,6 +229,10 @@ def run(cmd):
     print(cmd)
     subprocess.check_call(cmd, shell=True, executable='/bin/bash')
 
+def echo(msg):
+
+    print('generate.py: {}'.format(msg))
+
 # Go!
 
 if __name__ == '__main__':
@@ -256,6 +260,7 @@ if __name__ == '__main__':
     parser.add_argument('--work_dir', metavar='/work/dir', default='/tmp/cornn_{}'.format(datetime.now().strftime('%m%d%Y_%H%M%S')), help='path to temporary working directory (default = make new directory in /tmp)')
     parser.add_argument('--keep_work', action='store_true', help='do NOT remove working directory')
     parser.add_argument('--num_threads', metavar='N', default=1, help='Non-negative integer indicating number of threads to use when running multi-threaded steps of this pipeline (default = 1)')
+    parser.add_argument('--force', action='store_true', help='force overwrite output')
 
     args = parser.parse_args()
 
@@ -263,54 +268,81 @@ if __name__ == '__main__':
     # Parse inputs
     # ------------
 
+    echo('Parsing inputs...')
+
     t1_file = args.t1_file
     assert os.path.exists(args.t1_file), 'Input T1 file {} does not exist. Aborting.'.format(t1_file)
+    echo('Input file:\t\t{}'.format(t1_file))
 
     trk_file = args.trk_file
     trk_dir = os.path.dirname(trk_file)
+    trk_dir = '.' if trk_dir == '' else trk_dir
     assert os.path.exists(trk_dir), 'Output directory {} does not exist. Aborting.'.format(trk_dir)
+    force = args.force
+    if force:
+        echo('CAUTION! Output file {} will be overwritten.'.format(trk_file))
+    else:
+        assert not os.path.exists(trk_file), 'Output file {} already exists (use --force to overwrite). Aborting.'.format(trk_file)
+    echo('Output file:\t\t{}'.format(trk_file))
     
     slant_dir = str(args.slant)
     assert os.path.exists(slant_dir), 'SLANT directory {} does not exist. Aborting.'.format(slant_dir)
+    echo('SLANT directory:\t\t{}'.format(slant_dir))
     wml_dir = str(args.wml)
     assert os.path.exists(wml_dir), 'WML TractSeg directory {} does not exist. Aborting.'.format(wml_dir)
-        
-    device_str = args.device
+    echo('WML directory:\t\t{}'.format(wml_dir))
     
+    device_str = args.device
+    assert device_str[:4] == 'cuda' or device_str == 'cpu', 'Device must either be cuda or cpu. Aborting.'
+    echo('Device:\t\t\t{}'.format(device_str))
+
     num_seeds = int(args.num_seeds)
     assert num_seeds > 0, 'Parameter num_seeds must be positive. {} provided. Aborting.'.format(num_seeds)
+    echo('Number of seeds:\t\t{}'.format(num_seeds))
 
     max_steps = int(args.max_steps)
     assert max_steps > 0, 'Parameter max_steps must be positive. {} provided. Aborting.'.format(max_steps)
     min_steps = int(args.min_steps)
     assert min_steps > 0, 'Parameter min_steps must be positive. {} provided. Aborting.'.format(min_steps)
     assert min_steps < max_steps, 'Parameter min_steps must be less than max_steps. {} and {} were provided.'.format(min_steps, max_steps)
+    echo('Minimum steps:\t\t{}'.format(min_steps))
+    echo('Maximum steps:\t\t{}'.format(max_steps))
 
     angle_steps = int(args.buffer_steps)
     assert angle_steps > 0, 'Parameter angle_steps must be positive. {} provided. Aborting.'.format(angle_steps)
+    echo('Buffer steps:\t\t{}'.format(angle_steps))
 
     rev = not args.unidirectional
+    echo('Bidirectional:\t\t{}'.format(rev))
 
     num_select = int(args.num_streamlines)
     assert num_select > 0, 'Parameter num_streamlines must be positive. {} provided. Aborting.'.format(num_select)
+    echo('Number of streamlines:\t{}'.format(num_select))
 
     work_dir = args.work_dir
     if not os.path.exists(work_dir):
         os.mkdir(work_dir)
+    echo('Working directory:\t\t{}'.format(work_dir))
+    
     keep_work = args.keep_work
+    echo('Keep working directory:\t{}'.format(keep_work))
 
     # ---------------------------
     # Move into working directory
     # ---------------------------
 
+    echo('Moving into working directory...')
     if not os.path.exists(os.path.join(work_dir, 'T1.nii.gz')):
         convert_cmd = 'mrconvert {} {}'.format(t1_file, os.path.join(work_dir, 'T1.nii.gz'))
         run(convert_cmd)
+    else:
+        echo('Output exists, skipping.')
 
     # ----------
     # Prepare T1
     # ----------
 
+    echo('Preparing T1w MRI...')
     t1_cmd = '{} ; bash {} {} {} {} {} {}'.format(SOURCE_VENV, os.path.join(SRC_DIR, 'prep_T1.sh'), work_dir, ATLAS_DIR, SRC_DIR, slant_dir, wml_dir)
     run(t1_cmd)
 
@@ -318,7 +350,11 @@ if __name__ == '__main__':
     # Prepare inference
     # -----------------
 
+    echo('Preparing for inference...')
+
     # Load data
+
+    echo('Loading data...')
 
     mask_img    = nib.load(os.path.join(work_dir, 'T1_mask_mni_2mm.nii.gz')).get_fdata().astype(bool)
     seed_img    = nib.load(os.path.join(work_dir, 'T1_seed_mni_2mm.nii.gz')).get_fdata()
@@ -341,6 +377,8 @@ if __name__ == '__main__':
 
     # Load model
 
+    echo('Loading model...')
+
     device   = torch.device(device_str)
     cnn      = DetConvProj(123, 512, kernel_size=7)
     rnn      = DetRNN(512, fc_width=512, fc_depth=4, rnn_width=512, rnn_depth=2)
@@ -351,12 +389,14 @@ if __name__ == '__main__':
     # Inference (image-level)
     # -----------------------
 
+    echo('Performing inference (image)...')
     if not os.path.exists(os.path.join(work_dir, 'inference_mni_2mm.nii.gz')):
         ten = ten2features(ten, cnn, device)
         img = np.transpose(np.squeeze(ten.cpu().numpy(), axis=0), axes=(1, 2, 3, 0))
         nii = nib.Nifti1Image(img, aff)
         nib.save(nii, os.path.join(work_dir, 'inference_mni_2mm.nii.gz'))
     else:
+        echo('Image inference already done, loading...')
         nii = nib.load(os.path.join(work_dir, 'inference_mni_2mm.nii.gz'))
         img = nii.get_fdata()
         ten = torch.FloatTensor(np.expand_dims(np.transpose(img, axes=(3, 0, 1, 2)), axis=0))
@@ -364,6 +404,8 @@ if __name__ == '__main__':
     # --------------------
     # Inference (tracking)
     # --------------------
+
+    echo('Performing inference (tractography)...')
 
     if not os.path.exists(os.path.join(work_dir, 'inference_mni_2mm.trk')):
         
@@ -445,10 +487,15 @@ if __name__ == '__main__':
         sft = StatefulTractogram(streamlines_selected, reference=t1_nii, space=Space.VOX)
         save_tractogram(sft, os.path.join(work_dir, 'inference_mni_2mm.trk'), bbox_valid_check=False)
 
+    else:
+
+        echo('Tractography inference already done, skipping...')
+
     # -------------------------------------------------
     # Post-processing and move out of working directory
     # -------------------------------------------------
     
+    echo('Post-processing and moving out of working directory...')
     if not os.path.exists(trk_file):
         trk_cmd = '{} ; scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid'.format(SOURCE_SCILPY,
                                                                                                    os.path.join(work_dir, 'inference_mni_2mm.trk'), 
@@ -456,3 +503,18 @@ if __name__ == '__main__':
                                                                                                    os.path.join(work_dir, 'T12mni_0GenericAffine.mat'), 
                                                                                                    trk_file) # no --inverse needed per ANTs convention
         run(trk_cmd)
+    else:
+        echo('Post-processing already done, skipping...')
+
+    # -------
+    # Wrap up
+    # -------
+
+    echo('Cleaning up working directory...')
+    if not keep_work:
+        rm_cmd = 'rm -r {}'.format(work_dir)
+        run(rm_cmd)
+    else:
+        echo('User selected --keep_work, skipping...')
+
+    echo('Done!')
