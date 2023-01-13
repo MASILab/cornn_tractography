@@ -2,8 +2,6 @@
 # Leon Cai
 # MASI Lab
 
-# *** TODO make pretty, verbose, print statements, etc (prep T1 too!)
-
 # Set Up
 
 import os
@@ -244,7 +242,7 @@ if __name__ == '__main__':
     parser = ap.ArgumentParser(description='CoRNN tractography: Streamline propagation with convolutional-recurrent neural networks')
     
     parser.add_argument('t1_file', metavar='/in/file.nii.gz', help='path to the input NIFTI file')
-    parser.add_argument('trk_file', metavar='/out/file.trk', help='path to the output tractogram file')
+    parser.add_argument('out_file', metavar='/out/file.trk', help='path to the output tractogram file (trk, tck, vtk, fib, or dpy)')
 
     parser.add_argument('--slant', metavar='/slant/dir', default=None, help='path to the SLANT output directory (required)')
     parser.add_argument('--wml', metavar='/wml/dir', default=None, help='path to the WML TractSeg output directory (required)')
