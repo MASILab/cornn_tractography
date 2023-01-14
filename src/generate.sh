@@ -1,6 +1,6 @@
 #!/bin/bash
-source /cornn_tracotgraphy/venv/bin/activate
+source /cornn_tractography/venv/bin/activate
 which python
 python --version
-python /cornn_tractography/src/generate.py "$@"
+python /cornn_tractography/src/generate.py $@
 deactivate
