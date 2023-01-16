@@ -1,6 +1,8 @@
 #!/bin/bash
-source /cornn_tractography/venv/bin/activate
-which python
-python --version
-python /cornn_tractography/src/generate.py $@
+
+export CORNN_DIR=/home-local/cornn_tractography
+export SCIL_DIR=~/Apps/scilpy
+
+source $CORNN_DIR/venv/bin/activate
+python $CORNN_DIR/src/generate.py $@
 deactivate

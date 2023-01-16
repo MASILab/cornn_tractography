@@ -21,11 +21,12 @@ from modules import DetRNN, DetConvProj
 
 # Shared Variables
 
-ATLAS_DIR = '/home-local/cornn_tractography/atlas'
-MODEL_DIR = '/home-local/cornn_tractography/model'
-SRC_DIR   = '/home-local/cornn_tractography/src'
-SOURCE_SCILPY = 'source ~/Apps/scilpy/venv/bin/activate'
-SOURCE_VENV   = 'source /home-local/cornn_tractography/venv/bin/activate'
+CORNN_DIR = os.getenv('CORNN_DIR')
+MODEL_DIR = os.path.join(CORNN_DIR, 'model')
+SRC_DIR   = os.path.join(CORNN_DIR, 'src')
+VENV_DIR  = os.path.join(CORNN_DIR, 'venv')
+
+SCIL_DIR  = os.getenv('SCIL_DIR')
 
 # Helper Functions
 
@@ -239,9 +240,9 @@ if __name__ == '__main__':
     # Prepare inputs
     # --------------
 
-    parser = ap.ArgumentParser(description='CoRNN tractography: Streamline propagation with convolutional-recurrent neural networks')
+    parser = ap.ArgumentParser(description='CoRNN tractography with T1w MRI: Streamline propagation with convolutional-recurrent neural networks')
     
-    parser.add_argument('t1_file', metavar='/in/file.nii.gz', help='path to the input NIFTI file')
+    parser.add_argument('t1_file', metavar='/in/file.nii.gz', help='path to the input NIFTI T1w MRI file')
     parser.add_argument('out_file', metavar='/out/file.trk', help='path to the output tractogram file (trk, tck, vtk, fib, or dpy)')
 
     parser.add_argument('--slant', metavar='/slant/dir', default=None, help='path to the SLANT output directory (required)')
@@ -272,16 +273,16 @@ if __name__ == '__main__':
     assert os.path.exists(args.t1_file), 'Input T1 file {} does not exist. Aborting.'.format(t1_file)
     echo('Input file:\t\t{}'.format(t1_file))
 
-    trk_file = args.trk_file
-    trk_dir = os.path.dirname(trk_file)
-    trk_dir = '.' if trk_dir == '' else trk_dir
-    assert os.path.exists(trk_dir), 'Output directory {} does not exist. Aborting.'.format(trk_dir)
+    out_file = args.out_file
+    out_dir = os.path.dirname(out_file)
+    out_dir = '.' if out_dir == '' else out_dir
+    assert os.path.exists(out_dir), 'Output directory {} does not exist. Aborting.'.format(out_dir)
     force = args.force
     if force:
-        echo('CAUTION! Output file {} will be overwritten.'.format(trk_file))
+        echo('CAUTION! Output file {} will be overwritten.'.format(out_file))
     else:
-        assert not os.path.exists(trk_file), 'Output file {} already exists (use --force to overwrite). Aborting.'.format(trk_file)
-    echo('Output file:\t\t{}'.format(trk_file))
+        assert not os.path.exists(out_file), 'Output file {} already exists (use --force to overwrite). Aborting.'.format(out_file)
+    echo('Output file:\t\t{}'.format(out_file))
     
     slant_dir = str(args.slant)
     assert os.path.exists(slant_dir), 'SLANT directory {} does not exist. Aborting.'.format(slant_dir)
@@ -341,7 +342,7 @@ if __name__ == '__main__':
     # ----------
 
     echo('Preparing T1w MRI...')
-    t1_cmd = '{} ; bash {} {} {} {} {} {}'.format(SOURCE_VENV, os.path.join(SRC_DIR, 'prep_T1.sh'), work_dir, ATLAS_DIR, SRC_DIR, slant_dir, wml_dir)
+    t1_cmd = 'source {}/bin/activate ; bash {} {} {} {}'.format(VENV_DIR, os.path.join(SRC_DIR, 'prep_T1.sh'), work_dir, slant_dir, wml_dir)
     run(t1_cmd)
 
     # -----------------
@@ -494,13 +495,13 @@ if __name__ == '__main__':
     # -------------------------------------------------
     
     echo('Post-processing and moving out of working directory...')
-    if not os.path.exists(trk_file):
-        trk_cmd = '{} ; scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid'.format(SOURCE_SCILPY,
-                                                                                                   os.path.join(work_dir, 'inference_mni_2mm.trk'), 
-                                                                                                   os.path.join(work_dir, 'T1_N4.nii.gz'), 
-                                                                                                   os.path.join(work_dir, 'T12mni_0GenericAffine.mat'), 
-                                                                                                   trk_file) # no --inverse needed per ANTs convention
-        run(trk_cmd)
+    if not os.path.exists(out_file):
+        out_cmd = 'source {}/venv/bin/activate ; scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid'.format(SCIL_DIR,
+                                                                                                                            os.path.join(work_dir, 'inference_mni_2mm.trk'), 
+                                                                                                                            os.path.join(work_dir, 'T1_N4.nii.gz'), 
+                                                                                                                            os.path.join(work_dir, 'T12mni_0GenericAffine.mat'), 
+                                                                                                                            out_file) # no --inverse needed per ANTs convention
+        run(out_cmd)
     else:
         echo('Post-processing already done, skipping...')
 

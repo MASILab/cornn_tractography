@@ -5,13 +5,15 @@
 
 # Set Up
 
+import os
 import sys
 import numpy as np
 import nibabel as nib
 
 # Variables
 
-groups_file = '/home-local/dt1/code/pilot/slant_groupings_12.csv'
+CORNN_DIR = os.getenv('CORNN_DIR')
+GROUPS_FILE = os.path.join(CORNN_DIR, 'supplemental', 'slant_groupings_12.csv')
 
 # Go!
 
@@ -26,7 +28,7 @@ if __name__ == '__main__':
     seg_nii = nib.load(seg_file)
     seg_img = seg_nii.get_fdata().astype(int)
 
-    groups_raw = np.genfromtxt(groups_file, delimiter=',')[1:, 1:].astype(int)
+    groups_raw = np.genfromtxt(GROUPS_FILE, delimiter=',')[1:, 1:].astype(int)
 
     labels = groups_raw[:, 0]
     groups = groups_raw[:, level]
