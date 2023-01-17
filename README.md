@@ -64,66 +64,24 @@ We use Singularity version 3.8 CE with root permissions.
 
 ## Options
 
-**--device cuda/cpu**
+* **`--device cuda/cpu`** A string indicating the device on which to perform inference. Default = "cpu"
 
-A string indicating the device on which to perform inference.
+* **`--num_streamlines N`** A positive integer indicating the number of streamlines to identify. Default = 1000000
 
-Default = "cpu"
+* **`--num_seeds N`** A positive integer indicating the number of streamlines to seed per batch. One GB of GPU memory can handle approximately 10000 seeds. Default = 100000
 
-**--num_streamlines N**
+* **`--min_steps N`** A positive integer indicating the minimum number of 1mm steps per streamline. Default = 50
 
-A positive integer indicating the number of streamlines to identify.
+* **`--max_steps N`** A positive integer indicating the maximum number of 1mm steps per streamline. Default = 250
 
-Default = 1000000
+* **`--buffer_steps N`** A positive integer indicating the number of 1mm steps where the angle stopping criteria are ignored at the beginning of tracking. Default = 5
 
-**--num_seeds N**
+* **`--unidirectional`** A flag indicating that bidirectional tracking should not be performed. The buffer steps are NOT removed in this case. Default = Perform bidirectional tracking
 
-A positive integer indicating the number of streamlines to seed per batch. One GB of GPU memory can handle approximately 10000 seeds.
+* **`--work_dir /data/work_dir`** A string indicating the working directory to use. The location of the working directory on the host machine, `<work_dir>`, must also be bound into the container with `-B <work_dir>:/data/work_dir` in the [command](#command). If the working directory contains previously generated intermediates, the corresponding steps will not be rerun. Default = create a new working directory in `/tmp`
 
-Default = 100000
+* **`--keep_work`** A flag indicating that the intermediates in the working directory should NOT be cleared. Default = Clear working directory after completion
 
-**--min_steps N**
+* **`--num_threads N`** A positive integer indicating the number of threads to use during multithreaded steps. Default = 1
 
-A positive integer indicating the minimum number of 1mm steps per streamline.
-
-Default = 50
-
-**--max_steps N**
-
-A positive integer indicating the maximum number of 1mm steps per streamline.
-
-Default = 250
-
-**--buffer_steps N**
-
-A positive integer indicating the number of 1mm steps where the angle stopping criteria are ignored at the beginning of tracking.
-
-Default = 5
-
-**--unidirectional**
-
-A flag indicating that bidirectional tracking should not be performed. The buffer steps are NOT removed in this case.
-
-Default = Perform bidirectional tracking
-
-**--work_dir /data/work_dir**
-
-A string indicating the working directory to use. The location of the working directory on the host machine, `<work_dir>`, must also be bound into the container with `-B <work_dir>:/data/work_dir` in the [command](#command). If the working directory contains previously generated intermediates, the corresponding steps will not be rerun.
-
-**--keep_work**
-
-A flag indicating that the intermediates in the working directory should NOT be cleared.
-
-Default = Clear working directory after completion
-
-**--num_threads N**
-
-A positive integer indicating the number of threads to use during multithreaded steps.
-
-Default = 1
-
-**--force**
-
-A flag indicating that the output file should be overwritten if it already exists.
-
-Default = Do NOT override existing output file
+* **`--force`** A flag indicating that the output file should be overwritten if it already exists. Default = Do NOT override existing output file
