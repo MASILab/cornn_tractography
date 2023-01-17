@@ -17,7 +17,7 @@ This repository contains the model weights, source code, and containerized imple
 
 ## Authors and Reference
 
-[Leon Y. Cai](mailto:leon.y.cai@vanderbilt.edu), Ho Hin Lee, Nancy R. Newlin, Cailey I. Kerley, Praitayini Kanakaraj, Qi Yang, Graham W. Johnson, Daniel Moyer, Kurt G. Schilling, Francois Rheault, and Bennett A. Landman. Convolutiona-recurrent neural networks approximate diffusion tractography from T1-weighted MRI and associated anatomical context. *In Submission*, 2023.
+[Leon Y. Cai](mailto:leon.y.cai@vanderbilt.edu), Ho Hin Lee, Nancy R. Newlin, Cailey I. Kerley, Praitayini Kanakaraj, Qi Yang, Graham W. Johnson, Daniel Moyer, Kurt G. Schilling, Francois Rheault, and Bennett A. Landman. Convolutional-recurrent neural networks approximate diffusion tractography from T1-weighted MRI and associated anatomical context. *In Submission*, 2023.
 
 [Medical-image Analysis and Statistical Interpretation (MASI) Lab](https://my.vanderbilt.edu/masi), Vanderbilt University, Nashville, TN, USA
 
