@@ -1,8 +1,6 @@
-# CoRNN Tractography
+# CoRNN Tractography: Perform tractography on T1-weighted MRI, no diffusion MRI needed!
 
 ![itscornn](https://github.com/MASILab/cornn_tractography/blob/master/CoRNN.png?raw=true)
-
-Perform tractography on T1-weighted MRI, no diffusion MRI needed!
 
 ## Contents
 
