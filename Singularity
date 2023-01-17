@@ -77,7 +77,7 @@ From: ubuntu:18.04
     pip3 install wheel
     pip install --upgrade pip
     pip install --upgrade setuptools
-    SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
+    export SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
     pip install -e .
     deactivate
     cd /
