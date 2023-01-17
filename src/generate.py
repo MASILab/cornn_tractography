@@ -495,12 +495,13 @@ if __name__ == '__main__':
     # -------------------------------------------------
     
     echo('Post-processing and moving out of working directory...')
-    if not os.path.exists(out_file):
-        out_cmd = 'source {}/venv/bin/activate ; scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid'.format(SCIL_DIR,
-                                                                                                                            os.path.join(work_dir, 'inference_mni_2mm.trk'), 
-                                                                                                                            os.path.join(work_dir, 'T1_N4.nii.gz'), 
-                                                                                                                            os.path.join(work_dir, 'T12mni_0GenericAffine.mat'), 
-                                                                                                                            out_file) # no --inverse needed per ANTs convention
+    if not os.path.exists(out_file) or force:
+        out_cmd = 'source {}/venv/bin/activate ; scil_apply_transform_to_tractogram.py {} {} {} {} --remove_invalid {}'.format(SCIL_DIR,
+                                                                                                                               os.path.join(work_dir, 'inference_mni_2mm.trk'), 
+                                                                                                                               os.path.join(work_dir, 'T1_N4.nii.gz'), 
+                                                                                                                               os.path.join(work_dir, 'T12mni_0GenericAffine.mat'), 
+                                                                                                                               out_file,
+                                                                                                                               '--force' if force else '') # no --inverse needed per ANTs convention
         run(out_cmd)
     else:
         echo('Post-processing already done, skipping...')
