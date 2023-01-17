@@ -1,5 +1,9 @@
 # CoRNN Tractography
 
+![itscornn](https://github.com/MASILab/cornn_tractography/blob/master/CoRNN.png?raw=true)
+
+Perform tractography on T1-weighted MRI, no diffusion MRI needed!
+
 ## Contents
 
 * [Overview](#overview)
@@ -10,10 +14,6 @@
 * [Options](#options)
 
 ## Overview
-
-![itscornn](https://github.com/MASILab/cornn_tractography/blob/master/CoRNN.png?raw=true)
-
-Perform tractography on T1-weighted MRI, no diffusion MRI needed!
 
 This repository contains the model weights, source code, and containerized implementation of convolutional-recurrent neural network (CoRNN) tractography on T1w MRI with associated [SLANT](https://github.com/MASILab/SLANTbrainSeg) and [WM learning (WML)](https://github.com/MASILab/WM_learning_release) TractSeg segmentations. 
 
