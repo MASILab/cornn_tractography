@@ -278,7 +278,7 @@ if __name__ == '__main__':
     out_dir = '.' if out_dir == '' else out_dir
     assert os.path.exists(out_dir), 'Output directory {} does not exist. Aborting.'.format(out_dir)
     force = args.force
-    if force:
+    if force and os.path.exists(out_file):
         echo('CAUTION! Output file {} will be overwritten.'.format(out_file))
     else:
         assert not os.path.exists(out_file), 'Output file {} already exists (use --force to overwrite). Aborting.'.format(out_file)
@@ -501,7 +501,7 @@ if __name__ == '__main__':
                                                                                                                                os.path.join(work_dir, 'T1_N4.nii.gz'), 
                                                                                                                                os.path.join(work_dir, 'T12mni_0GenericAffine.mat'), 
                                                                                                                                out_file,
-                                                                                                                               '--force' if force else '') # no --inverse needed per ANTs convention
+                                                                                                                               '-f' if force else '') # no --inverse needed per ANTs convention
         run(out_cmd)
     else:
         echo('Post-processing already done, skipping...')
