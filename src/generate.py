@@ -308,7 +308,7 @@ if __name__ == '__main__':
     echo('Maximum steps:\t\t{}'.format(max_steps))
 
     angle_steps = int(args.buffer_steps)
-    assert angle_steps > 0, 'Parameter angle_steps must be positive. {} provided. Aborting.'.format(angle_steps)
+    assert angle_steps > 0, 'Parameter buffer_steps must be positive. {} provided. Aborting.'.format(angle_steps)
     echo('Buffer steps:\t\t{}'.format(angle_steps))
 
     rev = not args.unidirectional
@@ -326,6 +326,10 @@ if __name__ == '__main__':
     keep_work = args.keep_work
     echo('Keep working directory:\t{}'.format(keep_work))
 
+    num_threads = int(args.num_threads)
+    assert num_threads > 0, 'Parameter num_threads must be positive. {} provided. Aborting.'.format(num_threads)
+    echo('Number of threads:\t{}'.format(num_threads))
+
     # ---------------------------
     # Move into working directory
     # ---------------------------
@@ -342,7 +346,7 @@ if __name__ == '__main__':
     # ----------
 
     echo('Preparing T1w MRI...')
-    t1_cmd = 'source {}/bin/activate ; bash {} {} {} {}'.format(VENV_DIR, os.path.join(SRC_DIR, 'prep_T1.sh'), work_dir, slant_dir, wml_dir)
+    t1_cmd = 'source {}/bin/activate ; bash {} {} {} {} {}'.format(VENV_DIR, os.path.join(SRC_DIR, 'prep_T1.sh'), work_dir, slant_dir, wml_dir, num_threads)
     run(t1_cmd)
 
     # -----------------

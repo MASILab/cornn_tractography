@@ -6,6 +6,13 @@
 in_dir=$1
 slant_dir=$2
 wml_dir=$3
+num_threads=$4
+
+# Set number of threads for OpenMP operations (ANTs)
+
+export OMP_NUM_THREADS=$num_threads
+
+# Get directories
 
 supp_dir=$CORNN_DIR/supplemental
 src_dir=$CORNN_DIR/src
@@ -28,7 +35,7 @@ cmd="N4BiasFieldCorrection -d 3 -i $in_dir/T1.nii.gz -x $in_dir/T1_mask.nii.gz -
 # - T1_5tt.nii.gz
 
 echo "prep_T1.sh: Computing 5tt classes..."
-cmd="5ttgen fsl $in_dir/T1_N4.nii.gz $in_dir/T1_5tt.nii.gz -mask $in_dir/T1_mask.nii.gz -nocrop -scratch $in_dir"
+cmd="5ttgen fsl $in_dir/T1_N4.nii.gz $in_dir/T1_5tt.nii.gz -mask $in_dir/T1_mask.nii.gz -nocrop -scratch $in_dir -nthreads $num_threads"
 [ ! -f $in_dir/T1_5tt.nii.gz ] && (echo $cmd && eval $cmd) || echo "prep_T1.sh: Output exists, skipping!"
 
 # Generate seed map:
