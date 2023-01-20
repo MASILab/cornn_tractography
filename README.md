@@ -40,7 +40,6 @@ We use Singularity version 3.8 CE with root permissions.
     -B <slant_dir>:/data/slant
     -B <wml_dir>:/data/wml
     -B /tmp:/tmp
-    -B /path/to/cuda:/usr/local/cuda
     --nv
     /path/to/cornn_tractography.sif
     /data/T1.nii.gz
@@ -49,8 +48,8 @@ We use Singularity version 3.8 CE with root permissions.
     --wml /data/wml
     [options]
     
-* Binding the `/tmp` directory is necessary when running the image with `--contain`.
-* `--nv` and `-B /path/to/cuda:/usr/local/cuda` are optional. See options `--device`.
+* Binding `/tmp` is required with `--contain` when `--work_dir` is not specified.
+* `--nv` is optional. See `--device`.
 
 ## Arguments and I/O
 
@@ -64,7 +63,9 @@ We use Singularity version 3.8 CE with root permissions.
 
 ## Options
 
-* **`--device cuda/cpu`** A string indicating the device on which to perform inference. Default = "cpu"
+* **`--help`** Print help statement.
+
+* **`--device cuda/cpu`** A string indicating the device on which to perform inference. If "cuda" is selected, container option `--nv` must be included. Default = "cpu"
 
 * **`--num_streamlines N`** A positive integer indicating the number of streamlines to identify. Default = 1000000
 
