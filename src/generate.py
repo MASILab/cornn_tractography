@@ -223,14 +223,14 @@ def streamlines2reverse(streamlines_vox, streamlines_terminate, streamlines_reje
 
     return seed_vox, seed_step, seed_trid, seed_trii, seed_hidden, seed_max_steps, rev_valid
 
-def run(cmd):
-
-    print(cmd)
-    subprocess.check_call(cmd, shell=True, executable='/bin/bash')
-
 def echo(msg):
 
     print('generate.py: {}'.format(msg))
+    
+def run(cmd):
+
+    echo(cmd)
+    subprocess.check_call(cmd, shell=True, executable='/bin/bash')
 
 # Go!
 
