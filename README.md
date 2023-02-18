@@ -15,6 +15,8 @@
 
 This repository contains the model weights, source code, and containerized implementation of convolutional-recurrent neural network (CoRNN) tractography on T1w MRI with associated [SLANT](https://github.com/MASILab/SLANTbrainSeg) and [WM learning (WML)](https://github.com/MASILab/WM_learning_release) TractSeg segmentations. 
 
+Please note that this methodology is still actively being characterized, validated, and extended. If you're interested in working with us to explore what it means to run tractography on T1w MRI, please [contact us](#authors-and-reference) and let us know!
+
 ## Authors and Reference
 
 [Leon Y. Cai](mailto:leon.y.cai@vanderbilt.edu), Ho Hin Lee, Nancy R. Newlin, Cailey I. Kerley, Praitayini Kanakaraj, Qi Yang, Graham W. Johnson, Daniel Moyer, Kurt G. Schilling, Francois Rheault, and Bennett A. Landman. Convolutional-recurrent neural networks approximate diffusion tractography from T1-weighted MRI and associated anatomical context. *In Submission*, 2023.
