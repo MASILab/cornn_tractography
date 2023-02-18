@@ -36,14 +36,14 @@ We use Singularity version 3.8 CE with root permissions.
     -e 
     --contain
     -B <t1_file>:/data/T1.nii.gz
-    -B <out_file>:/data/tractogram.trk
+    -B <out_dir>:/data
     -B <slant_dir>:/data/slant
     -B <wml_dir>:/data/wml
     -B /tmp:/tmp
     --nv
     /path/to/cornn_tractography.sif
     /data/T1.nii.gz
-    /data/tractogram.trk
+    /data/<out_name>
     --slant /data/slant
     --wml /data/wml
     [options]
@@ -55,11 +55,13 @@ We use Singularity version 3.8 CE with root permissions.
 
 * **`<t1_file>`** Path on the host machine to the T1-weighted MRI with which tractography is to be performed in NIFTI format (either compressed or not).
 
-* **`<out_file>`** Path on the host machine to the target tractogram to generate in trk, tck, vtk, fib, or dpy format.
+* **`<out_dir>`** Path on the host machine to the *directory* in which the output tractogram will be saved.
 
-* **`<slant_dir>`** Path on the host machine to the SLANT output directory
+* **`<out_name>`** *Name* (i.e., no directory) of the output tractogram with extension in trk, tck, vtk, fib, or dpy format.
 
-* **`<wml_dir>`** Path on the host machine to the TractSeg WM Learning output directory
+* **`<slant_dir>`** Path on the host machine to the SLANT output directory.
+
+* **`<wml_dir>`** Path on the host machine to the TractSeg WM Learning output directory.
 
 ## Options
 
@@ -79,7 +81,7 @@ We use Singularity version 3.8 CE with root permissions.
 
 * **`--unidirectional`** A flag indicating that bidirectional tracking should not be performed. The buffer steps are NOT removed in this case. Default = Perform bidirectional tracking
 
-* **`--work_dir /data/work_dir`** A string indicating the working directory to use. The location of the working directory on the host machine, `<work_dir>`, must also be bound into the container with `-B <work_dir>:/data/work_dir` in the [command](#command). If the working directory contains previously generated intermediates, the corresponding steps will not be rerun. Default = create a new working directory in `/tmp`
+* **`--work_dir /data/work_dir`** A string indicating the working directory to use. The location of the working directory on the host machine, `<work_dir>`, must also exist and be bound into the container with `-B <work_dir>:/data/work_dir` in the [command](#command). If the working directory contains previously generated intermediates, the corresponding steps will not be rerun. Default = create a new working directory in `/tmp`
 
 * **`--keep_work`** A flag indicating that the intermediates in the working directory should NOT be cleared. Default = Clear working directory after completion
 
