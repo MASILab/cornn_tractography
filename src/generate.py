@@ -328,7 +328,7 @@ if __name__ == '__main__':
 
     num_threads = int(args.num_threads)
     assert num_threads > 0, 'Parameter num_threads must be positive. {} provided. Aborting.'.format(num_threads)
-    echo('Number of threads:\t{}'.format(num_threads))
+    echo('Number of threads:\t\t{}'.format(num_threads))
 
     # ---------------------------
     # Move into working directory
