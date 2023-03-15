@@ -190,6 +190,8 @@ def streamlines2reverse(streamlines_vox, streamlines_terminate, streamlines_reje
     # Compute hidden states batch-wise
 
     num_batches = np.median(np.sum(rev_vox_nan, axis=0)).astype(int)                                # Make each batch contain roughly the same number of total steps as there are streamlines
+    if num_batches == 0:                                                                            # Consider edge case where num_batches is 0
+        num_batches += 1
     rev_batch_idxs = np.round(np.linspace(0, rev_valid_num, num_batches+1)).astype(int)             # since we know we can fit 1 step per streamline and all streamlines on the GPU    
 
     rnn = rnn.to(device)
