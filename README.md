@@ -28,9 +28,11 @@ Please note that this methodology is still actively being characterized, validat
     git clone https://github.com/MASILab/cornn_tractography.git
     cd /path/to/repo/cornn_tractography
     git checkout v1.0.0
-    sudo singularity build /path/to/cornn_tractography.sif Singularity
+    sudo singularity build /path/to/CoRNN_v1.0.0.sif Singularity
 
 We use Singularity version 3.8 CE with root permissions.
+
+Alternatively, a pre-built container can be downloaded [here](https://masi.vuse.vanderbilt.edu/CoRNN/CoRNN_v1.0.0.sif).
 
 ## Command
 
@@ -43,7 +45,7 @@ We use Singularity version 3.8 CE with root permissions.
     -B <wml_dir>:/data/wml
     -B /tmp:/tmp
     --nv
-    /path/to/cornn_tractography.sif
+    /path/to/CoRNN_v1.0.0.sif
     /data/T1.nii.gz
     /data/<out_name>
     --slant /data/slant
