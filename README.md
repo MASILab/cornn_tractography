@@ -17,9 +17,11 @@ This repository contains the model weights, source code, and containerized imple
 
 Please note that this methodology is still actively being characterized, validated, and extended. If you're interested in working with us to explore what it means to run tractography on T1w MRI, please [contact us](#authors-and-reference) and let us know!
 
-## Authors and Reference
+## Authors and References
 
-[Leon Y. Cai](mailto:leon.y.cai@vanderbilt.edu), Ho Hin Lee, Nancy R. Newlin, Cailey I. Kerley, Praitayini Kanakaraj, Qi Yang, Graham W. Johnson, Daniel Moyer, Kurt G. Schilling, Francois Rheault, and Bennett A. Landman. [Convolutional-recurrent neural networks approximate diffusion tractography from T1-weighted MRI and associated anatomical context](https://www.biorxiv.org/content/10.1101/2023.02.25.530046v1). Proceedings of Machine Learning Reseach. In press. 2023.
+[Leon Y. Cai](mailto:leon.y.cai@vanderbilt.edu), Ho Hin Lee, Nancy R. Newlin, Cailey I. Kerley, Praitayini Kanakaraj, Qi Yang, Graham W. Johnson, Daniel Moyer, Kurt G. Schilling, Francois Rheault, and Bennett A. Landman. [Convolutional-recurrent neural networks approximate diffusion tractography from T1-weighted MRI and associated anatomical context](https://www.biorxiv.org/content/10.1101/2023.02.25.530046v2). Proceedings of Machine Learning Reseach. 2023.
+
+Leon Y. Cai, Ho Hin Lee, Graham W. Johnson, Nancy R. Newlin, Karthik Ramadass, Michael E. Kim, Derek B. Archer, Timothy J. Hohman, Angela L. Jefferson, J. Patrick Begnoche, Brian D. Boyd, Warren D. Taylor, Victoria L. Morgan, Dario J. Englot, Vishwesh Nath, Silky Chotai, Laura Barquero, Micah D’Archangel, Laurie E. Cutting, Benoit M. Dawant, François Rheault, Daniel C. Moyer, Kurt G. Schilling, John C. Gore, and Bennett A. Landman. [Tractography from T1-weighted MRI: Empirically exploring the clinical viability of streamline propagation without diffusion MRI](https://direct.mit.edu/imag/article/doi/10.1162/imag_a_00259/123726/Tractography-from-T1-weighted-MRI-Empirically). Imaging Neuroscience. 2024.
 
 [Medical-image Analysis and Statistical Interpretation (MASI) Lab](https://my.vanderbilt.edu/masi), Vanderbilt University, Nashville, TN, USA
 
